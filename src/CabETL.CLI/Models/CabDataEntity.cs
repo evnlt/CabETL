@@ -2,8 +2,8 @@
 
 public struct CabDataEntity
 {
-    public DateTime PickupDatetime { get; set; }
-    public DateTime DropoffDatetime { get; set; }
+    public DateTime PickupDatetimeUTC { get; set; }
+    public DateTime DropoffDatetimeUTC { get; set; }
     public int PassengerCount { get; set; }
     public float TripDistance { get; set; }
     public string StoreAndFwd { get; set; } // no idea how to name it

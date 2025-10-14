@@ -68,10 +68,24 @@ public class DbSchemaService
         var query3 = @"
             CREATE UNIQUE CLUSTERED INDEX IX_v_CabData_TipStatsByPickupLocation
             ON v_CabData_TipStatsByPickupLocation (PickupLocationId);";
+        
+        var query4 = @"
+            CREATE INDEX IX_CabData_TripDistance_FareAmount
+            ON dbo.CabData (TripDistance DESC)
+            INCLUDE (FareAmount);";
+        
+        var query5 = @"
+            ALTER TABLE dbo.CabData
+            ADD TripDurationInMinutes AS DATEDIFF(MINUTE, PickupDatetime, DropoffDatetime) PERSISTED;
+
+            CREATE INDEX IX_CabData_TripDurationInMinutes
+            ON dbo.CabData (TripDurationInMinutes DESC);";
 
         await connection.ExecuteAsync(query1);
         await connection.ExecuteAsync(query2);
         await connection.ExecuteAsync(query3);
+        await connection.ExecuteAsync(query4);
+        await connection.ExecuteAsync(query5);
     }
 
     public static async Task DeleteDatabase()

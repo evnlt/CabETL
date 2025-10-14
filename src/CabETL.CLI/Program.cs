@@ -30,3 +30,8 @@ var recordsLeft = totalRowsInserted - deletedCount;
 Console.WriteLine("Records left in db - " + recordsLeft);
 
 await DbSchemaService.CreateIndexes(connectionString);
+
+// Assume your program will be used on much larger data files. Describe in a few sentences what you would change if you knew it would be used for a 10GB CSV input file.
+// 1. Play with batch size to see what number works best
+// 2. Process file in parallel
+// 3. Implement producer-consumer pattern

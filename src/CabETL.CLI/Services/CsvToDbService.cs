@@ -12,6 +12,7 @@ namespace CabETL.CLI.Services;
 // bad service name, have to think of something else
 public class CsvToDbService
 {
+    private readonly TimeZoneInfo estTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
     private readonly string _connectionString;
 
     public CsvToDbService(string connectionString)
@@ -31,7 +32,8 @@ public class CsvToDbService
         {
             HasHeaderRecord = true,
             BadDataFound = null,
-            MissingFieldFound = null
+            MissingFieldFound = null,
+            ReadingExceptionOccurred = ex => false
         };
 
         using var csv = new CsvReader(reader, csvConfig);
@@ -42,9 +44,14 @@ public class CsvToDbService
 
         while (csv.Read())
         {
-            var record = csv.GetRecord<CabDataModel>();
+            var record = csv.GetRecord<CabDataModel?>();
 
-            CabDataEntity? entity = Process(record);
+            if (record == null)
+            {
+                continue;
+            }
+
+            CabDataEntity? entity = ValidateAndProcess(record);
 
             if (entity != null)
             {
@@ -84,8 +91,8 @@ public class CsvToDbService
         foreach (var row in batch)
         {
             table.Rows.Add(
-                row.PickupDatetime,
-                row.DropoffDatetime,
+                row.PickupDatetimeUTC,
+                row.DropoffDatetimeUTC,
                 row.PassengerCount,
                 row.TripDistance,
                 row.StoreAndFwd,
@@ -132,7 +139,7 @@ public class CsvToDbService
             FROM Duplicates
             WHERE DupCount > 1;";
 
-        // probabply should be done in batches
+        // should be loaded into memory in batches
         var duplicates = (await connection.QueryAsync<CabDataEntity>(duplicatesQuery)).AsList();
         var duplicatesCount = duplicates.Count;
 
@@ -165,9 +172,9 @@ public class CsvToDbService
         await writer.FlushAsync();
     }
 
-    // TODO - move to validation class
-    private static CabDataEntity? Process(CabDataModel model)
+    private CabDataEntity? ValidateAndProcess(CabDataModel model)
     {
+        model.StoreAndFwd = model.StoreAndFwd?.Trim();
         model.StoreAndFwd = model.StoreAndFwd switch
         {
             "N" => nameof(StoreAndFwdOptions.No),
@@ -180,15 +187,35 @@ public class CsvToDbService
             return null;
         }
 
-        if (model.PassengerCount == null)
+        if (model.PassengerCount is null or <= 0)
+        {
+            return null;
+        }
+        
+        if (model.PickupDatetimeEST > model.DropoffDatetimeEST)
+        {
+            return null;
+        }
+
+        if (model.FareAmount <= 0)
+        {
+            return null;
+        }
+        
+        if (model.TipAmount < 0)
+        {
+            return null;
+        }
+        
+        if (model.TripDistance <= 0)
         {
             return null;
         }
 
         return new CabDataEntity
         {
-            PickupDatetime = model.PickupDatetime,
-            DropoffDatetime = model.DropoffDatetime,
+            PickupDatetimeUTC = TimeZoneInfo.ConvertTimeToUtc(model.PickupDatetimeEST, estTimeZone),
+            DropoffDatetimeUTC = TimeZoneInfo.ConvertTimeToUtc(model.DropoffDatetimeEST, estTimeZone),
             PassengerCount = model.PassengerCount.Value,
             TripDistance = model.TripDistance,
             StoreAndFwd = model.StoreAndFwd,
@@ -197,22 +224,5 @@ public class CsvToDbService
             FareAmount = model.FareAmount,
             TipAmount = model.TipAmount
         };
-    }
-}
-
-public sealed class CabDataModelMap : ClassMap<CabDataModel>
-{
-    public CabDataModelMap()
-    {
-        // TODO - column names should be in constants file
-        Map(m => m.PickupDatetime).Name("tpep_pickup_datetime");
-        Map(m => m.DropoffDatetime).Name("tpep_dropoff_datetime");
-        Map(m => m.PassengerCount).Name("passenger_count");
-        Map(m => m.TripDistance).Name("trip_distance");
-        Map(m => m.StoreAndFwd).Name("store_and_fwd_flag");
-        Map(m => m.PickupLocationId).Name("PULocationID");
-        Map(m => m.DropoffLocationId).Name("DOLocationID");
-        Map(m => m.FareAmount).Name("fare_amount");
-        Map(m => m.TipAmount).Name("tip_amount");
     }
 }

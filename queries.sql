@@ -18,8 +18,7 @@ ORDER BY AverageTipAmount DESC;
 -- Find the top 100 longest fares in terms of `trip_distance`.
 
 SELECT TOP 100
-    PickupLocationId,
-    DropoffLocationId,
+    FareAmount,
     TripDistance
 FROM dbo.CabData
 ORDER BY TripDistance DESC;
@@ -27,14 +26,12 @@ ORDER BY TripDistance DESC;
 -- Find the top 100 longest fares in terms of time spent traveling.
 
 SELECT TOP 100
-    PickupDatetime,
-    DropoffDatetime,
-    DATEDIFF(SECOND, PickupDatetime, DropoffDatetime) AS TripDurationInSeconds,
-    *
+    FareAmount,
+    TripDurationInMinutes
 FROM
     CabData
 ORDER BY
-    TripDurationInSeconds DESC;
+    TripDurationInMinutes DESC;
 
 -- Search, where part of the conditions is `PULocationId`.
 
