@@ -43,11 +43,11 @@ public class CsvToDbService
             var record = csv.GetRecord<CabDataModel>();
 
             // TODO - data processing / validation 
-            var entity = Process(record);
+            CabDataEntity? entity = Process(record);
 
             if (entity != null)
             {
-                batch.Add(entity);
+                batch.Add(entity.Value);
             }
 
             if (batch.Count >= batchSize)
