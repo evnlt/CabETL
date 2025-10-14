@@ -1,7 +1,7 @@
 ﻿using System.Data;
 using System.Globalization;
-using CabETL.CLI.Entities;
-using CabETL.CLI.Entities.Enums;
+using CabETL.CLI.Models;
+using CabETL.CLI.Models.Enums;
 using CsvHelper;
 using CsvHelper.Configuration;
 using Microsoft.Data.SqlClient;
@@ -18,7 +18,7 @@ public class CsvToDbService
         _connectionString = connectionString;
     }
 
-    public void ImportCsvToDatabase(string csvFilePath, int batchSize = 10000)
+    public int ImportCsvToDatabase(string csvFilePath, int batchSize = 10000)
     {
         if (!File.Exists(csvFilePath))
         {
@@ -36,13 +36,13 @@ public class CsvToDbService
         using var csv = new CsvReader(reader, csvConfig);
         csv.Context.RegisterClassMap<CabDataModelMap>();
 
+        int totalRowsInserted = 0;
         var batch = new List<CabDataEntity>(batchSize);
 
         while (csv.Read())
         {
             var record = csv.GetRecord<CabDataModel>();
 
-            // TODO - data processing / validation 
             CabDataEntity? entity = Process(record);
 
             if (entity != null)
@@ -52,6 +52,7 @@ public class CsvToDbService
 
             if (batch.Count >= batchSize)
             {
+                totalRowsInserted += batch.Count;
                 BulkInsert(batch);
                 batch.Clear();
             }
@@ -59,10 +60,11 @@ public class CsvToDbService
 
         if (batch.Count > 0)
         {
+            totalRowsInserted += batch.Count;
             BulkInsert(batch);
         }
 
-        // TODO - return total rows inserted
+        return totalRowsInserted;
     }
 
     private void BulkInsert(IEnumerable<CabDataEntity> batch)
@@ -113,7 +115,6 @@ public class CsvToDbService
         bulkCopy.ColumnMappings.Add("TipAmount", "TipAmount");
         
         bulkCopy.WriteToServer(table);
-        Console.WriteLine($"Inserted batch of {table.Rows.Count} rows");
     }
 
     // TODO - move to validation class

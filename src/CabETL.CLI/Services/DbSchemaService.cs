@@ -44,4 +44,44 @@ public class DbSchemaService
 
         await dbConnection.ExecuteAsync(createTable);
     }
+    
+    public static async Task CreateIndexes(string connectionString)
+    {
+        await using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        var query1 = @"
+            CREATE INDEX IX_CabData_PickupLocationId
+            ON dbo.CabData (PickupLocationId);";
+
+        var query2 = @"
+            CREATE VIEW dbo.v_CabData_TipStatsByPickupLocation
+            WITH SCHEMABINDING
+            AS
+            SELECT
+                PickupLocationId,
+                SUM(CAST(TipAmount AS DECIMAL(10,2))) AS TotalTipAmount,
+                COUNT_BIG(*) AS TripCount
+            FROM dbo.CabData
+            GROUP BY PickupLocationId;";
+        
+        var query3 = @"
+            CREATE UNIQUE CLUSTERED INDEX IX_v_CabData_TipStatsByPickupLocation
+            ON v_CabData_TipStatsByPickupLocation (PickupLocationId);";
+
+        await connection.ExecuteAsync(query1);
+        await connection.ExecuteAsync(query2);
+        await connection.ExecuteAsync(query3);
+    }
+
+    public static async Task DeleteDatabase()
+    {
+        var sql = @"
+            DROP DATABASE [CabDataDb];
+        ";
+
+        await using var connection = new SqlConnection("Data Source=(local);Database=master;User Id=sa;Password=Qwerty123$%;TrustServerCertificate=true");
+        await connection.OpenAsync();
+        await connection.ExecuteAsync(sql, new { DbName = "CabDataDb" });
+    }
 }

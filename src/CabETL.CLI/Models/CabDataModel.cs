@@ -1,4 +1,4 @@
-﻿namespace CabETL.CLI.Entities;
+﻿namespace CabETL.CLI.Models;
 
 public class CabDataModel
 {
