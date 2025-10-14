@@ -117,7 +117,6 @@ public class CsvToDbService
     }
 
     // TODO - move to validation class
-    // here it can be mapped onto entity class but it would take up too much resources 
     public static CabDataEntity? Process(CabDataModel model)
     {
         model.StoreAndFwd = model.StoreAndFwd switch

@@ -1,10 +1,11 @@
 ﻿using CabETL.CLI.Services;
 
 var connectionString =
-    "Data Source=(local);Initial Catalog=CabData;User Id=sa;Password=Qwerty123$%;TrustServerCertificate=true";
+    "Data Source=(local);Database=CabDataDb;User Id=sa;Password=Qwerty123$%;TrustServerCertificate=true";
+
+await DbSchemaService.EnsureDbSchemaExists(connectionString);
 
 // TODO - add an ability to type in file path 
-
 var solutionRoot = Directory.GetParent(AppDomain.CurrentDomain.BaseDirectory)?.Parent?.Parent?.Parent?.Parent?.Parent?.FullName; // this looks bad
 if (solutionRoot == null)
 {

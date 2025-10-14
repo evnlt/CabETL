@@ -1,6 +1,4 @@
-﻿using CabETL.CLI.Entities.Enums;
-
-namespace CabETL.CLI.Entities;
+﻿namespace CabETL.CLI.Entities;
 
 public struct CabDataEntity
 {
