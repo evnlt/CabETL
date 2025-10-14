@@ -1,9 +1,10 @@
 ﻿using System.Data;
 using System.Globalization;
+using CabETL.CLI.Enums;
 using CabETL.CLI.Models;
-using CabETL.CLI.Models.Enums;
 using CsvHelper;
 using CsvHelper.Configuration;
+using Dapper;
 using Microsoft.Data.SqlClient;
 
 namespace CabETL.CLI.Services;
@@ -116,14 +117,61 @@ public class CsvToDbService
         
         bulkCopy.WriteToServer(table);
     }
+    
+    public async Task<int> DeleteDuplicates(string csvFilePath)
+    {
+        await using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync();
+
+        var duplicatesQuery = @"
+            WITH Duplicates AS (
+                SELECT *, COUNT(*) OVER(PARTITION BY DropoffDatetime, PickupLocationId, PassengerCount) AS DupCount
+                FROM dbo.CabData
+            )
+            SELECT *
+            FROM Duplicates
+            WHERE DupCount > 1;";
+
+        // probabply should be done in batches
+        var duplicates = (await connection.QueryAsync<CabDataEntity>(duplicatesQuery)).AsList();
+        var duplicatesCount = duplicates.Count;
+
+        if (!duplicates.Any())
+        {
+            return 0;
+        }
+
+        await WriteToCsv(duplicates, csvFilePath);
+
+        var deleteQuery = @"
+            WITH ToDelete AS (
+                SELECT *,
+                       ROW_NUMBER() OVER(PARTITION BY DropoffDatetime, PickupLocationId, PassengerCount ORDER BY (SELECT 0)) AS rn
+                FROM dbo.CabData
+            )
+            DELETE FROM ToDelete
+            WHERE rn > 1;";
+
+        await connection.ExecuteAsync(deleteQuery);
+
+        return duplicatesCount;
+    }
+
+    private async Task WriteToCsv(IEnumerable<CabDataEntity> duplicates, string csvFilePath)
+    {
+        await using var writer = new StreamWriter(csvFilePath);
+        await using var csv = new CsvWriter(writer, CultureInfo.InvariantCulture);
+        await csv.WriteRecordsAsync(duplicates);
+        await writer.FlushAsync();
+    }
 
     // TODO - move to validation class
-    public static CabDataEntity? Process(CabDataModel model)
+    private static CabDataEntity? Process(CabDataModel model)
     {
         model.StoreAndFwd = model.StoreAndFwd switch
         {
-            "N" => nameof(StoreAndFwdEntityOptions.No),
-            "Y" => nameof(StoreAndFwdEntityOptions.Yes),
+            "N" => nameof(StoreAndFwdOptions.No),
+            "Y" => nameof(StoreAndFwdOptions.Yes),
             _ => null
         };
         

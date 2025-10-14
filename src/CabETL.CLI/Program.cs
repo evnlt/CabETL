@@ -22,4 +22,11 @@ var service = new CsvToDbService(connectionString);
 var totalRowsInserted = service.ImportCsvToDatabase(csvPath);
 Console.WriteLine("Total inserted - " + totalRowsInserted);
 
+var duplicatesCsvPath = Path.Combine(solutionRoot, "duplicates.csv");
+var deletedCount = await service.DeleteDuplicates(duplicatesCsvPath);
+Console.WriteLine("Deleted count - " + deletedCount);
+
+var recordsLeft = totalRowsInserted - deletedCount;
+Console.WriteLine("Records left in db - " + recordsLeft);
+
 await DbSchemaService.CreateIndexes(connectionString);
